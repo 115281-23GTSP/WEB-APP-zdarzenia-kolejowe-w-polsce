@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa Katastrof Kolejowych w Polsce</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+        }
+        
+        header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 15px 20px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        header h1 {
+            font-size: 24px;
+            margin: 0;
+        }
+        
+        header p {
+            font-size: 12px;
+            opacity: 0.9;
+            margin: 5px 0 0 0;
+        }
+        
+        .container {
+            display: flex;
+            height: calc(100vh - 80px);
+        }
+        
+        #sidebar {
+            width: 300px;
+            background-color: white;
+            border-right: 1px solid #ddd;
+            overflow-y: auto;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        #sidebar h2 {
+            font-size: 16px;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+        
+        .event-count {
+            background-color: #e74c3c;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .event-list {
+            list-style: none;
+        }
+        
+        .event-item {
+            padding: 10px;
+            margin-bottom: 8px;
+            background-color: #f9f9f9;
+            border-left: 4px solid #e74c3c;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+        
+        .event-item:hover {
+            background-color: #f0f0f0;
+            transform: translateX(5px);
+        }
+        
+        .event-item-title {
+            font-weight: bold;
+            font-size: 13px;
+            color: #2c3e50;
+        }
+        
+        .event-item-date {
+            font-size: 11px;
+            color: #7f8c8d;
+            margin-top: 3px;
+        }
+        
+        #map {
+            flex: 1;
+            background-color: #e0e0e0;
+        }
+        
+        footer {
+            background-color: #34495e;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            font-size: 11px;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🚂 Historyczne Katastrofy Kolejowe w Polsce</h1>
+        <p>Interaktywna mapa zdarzeń na polskich torach</p>
+    </header>
+    
+    <div class="container">
+        <div id="sidebar">
+            <h2>Zdarzenia</h2>
+            <div class="event-count" id="eventCount">0 zdarzeń</div>
+            <div class="loading" id="loading">Ładowanie...</div>
+            <ul class="event-list" id="eventList"></ul>
+        </div>
+        
+        <div id="map"></div>
+    </div>
+    
+    <footer>
+        <p>&copy; 2026 Projekt Geoinformatyka - Uniwersytet Zielonogórski</p>
+    </footer>
+    
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script>
+        // Inicjalizacja mapy — TYLKO POLSKA
+        const polandBounds = [[49, 14], [54.5, 24.5]];
+        const map = L.map('map').fitBounds(polandBounds);
+        
+        // Ograniczenie mapy tylko do Polski
+        map.setMaxBounds(polandBounds);
+        
+        // Dodanie warstwy mapy
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors',
+            maxZoom: 19
+        }).addTo(map);
+        
+        let allEvents = [];
+        
+        // Pobieranie zdarzeń z API
+        fetch('/api/zdarzenia/')
+            .then(response => response.json())
+            .then(data => {
+                allEvents = data;
+                console.log('Pobrane zdarzenia:', data);
+                
+                // Aktualizacja liczby zdarzeń
+                document.getElementById('eventCount').textContent = 
+                    data.length + (data.length === 1 ? ' zdarzenie' : ' zdarzeń');
+                
+                // Czyszczenie "Ładowanie..."
+                document.getElementById('loading').style.display = 'none';
+                
+                // Dodawanie pinezek i listy
+                data.forEach((zdarzenie, index) => {
+                    // Pineska na mapie
+                    const marker = L.circleMarker(
+                        [zdarzenie.szerokosc, zdarzenie.dlugosc],
+                        {
+                            radius: 8,
+                            fillColor: '#e74c3c',
+                            color: '#c0392b',
+                            weight: 2,
+                            opacity: 1,
+                            fillOpacity: 0.8
+                        }
+                    );
+                    
+                    marker.bindPopup(`
+                        <strong>${zdarzenie.tytul}</strong><br>
+                        ${zdarzenie.miejscowosc}<br>
+                        <a href="/zdarzenie/${zdarzenie.id}/">Szczegóły →</a>
+                    `);
+                    
+                    marker.addTo(map);
+                    
+                    // Element na liście w sidebar
+                    const listItem = document.createElement('li');
+                    listItem.className = 'event-item';
+                    listItem.innerHTML = `
+                        <div class="event-item-title">${zdarzenie.tytul}</div>
+                        <div class="event-item-date">${zdarzenie.data}</div>
+                    `;
+                    
+                    // Kliknięcie na liście → zoom do zdarzenia
+                    listItem.addEventListener('click', () => {
+                        map.setView([zdarzenie.szerokosc, zdarzenie.dlugosc], 11);
+                        marker.openPopup();
+                    });
+                    
+                    document.getElementById('eventList').appendChild(listItem);
+                });
+            })
+            .catch(error => {
+                console.error('Błąd przy pobieraniu danych:', error);
+                document.getElementById('loading').textContent = 'Błąd przy ładowaniu danych';
+            });
+    </script>
+</body>
+</html>

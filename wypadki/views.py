@@ -7,7 +7,7 @@ from .models import Zdarzenie
 
 def mapa_widok(request):
     """Widok renderujący główny szablon mapy z Leafletem."""
-    return render(request, 'mapa.html')
+    return render(request, 'index.html')
 
 def api_zdarzenia(request):
     """Endpoint API zwracający wszystkie zdarzenia wraz z powiązanymi obiektami."""
