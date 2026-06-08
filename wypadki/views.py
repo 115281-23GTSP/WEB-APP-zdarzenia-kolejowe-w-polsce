@@ -1,7 +1,5 @@
 from django.shortcuts import render
-
-# Create your views here.
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404
 from django.http import JsonResponse
 from .models import Zdarzenie
 
@@ -49,3 +47,7 @@ def api_zdarzenia(request):
         })
 
     return JsonResponse(dane_wyjsciowe, safe=False)
+
+def szczegoly_zdarzenia(request, pk):
+    zdarzenie = get_object_or_404(Zdarzenie.objects.select_related('lokomotywa').prefetch_related('materialy'), pk=pk)
+    return render(request, 'szczegoly.html', {'zdarzenie': zdarzenie})
